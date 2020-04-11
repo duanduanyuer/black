@@ -13,6 +13,6 @@ public class Test {
         DLPApplicationContext applicationContext = new DLPApplicationContext("classpath:application.properties");
 //        BaseService service = (BaseService)applicationContext.getBean(BaseService.class); //按照类型获取
         BaseService service = (BaseService)applicationContext.getBean("dlpService"); //按照名字获取
-        System.out.printf(service.hello("hello world!!!"));
+        System.out.printf(service.hello("hello spring!!!"));
     }
 }
