@@ -103,7 +103,6 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
                 autowiredBeanName = field.getType().getName();
             }
             field.setAccessible(true); //强制访问
-            System.out.println("autowiredBeanName==="+autowiredBeanName);
             try {
                 //为什么这里会有null 接口的
                 if(this.factoryBeanInstanceCache.get(autowiredBeanName) == null){continue;}

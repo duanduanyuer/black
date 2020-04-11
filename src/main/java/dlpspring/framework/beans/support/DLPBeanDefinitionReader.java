@@ -77,8 +77,6 @@ public class DLPBeanDefinitionReader {
                 return null;
             }
             DLPBeanDefinition beanDefinition = new DLPBeanDefinition();
-            System.out.println(className);
-            System.out.println(beanName);
             beanDefinition.setBeanName(className);//com.jd.***.Test
             beanDefinition.setFactoryBeanName(beanName); //test
             return beanDefinition;
@@ -93,7 +91,7 @@ public class DLPBeanDefinitionReader {
         return String.valueOf(chars);
     }
     private void doScanner(String property) {
-        System.out.println(property);
+        //this.getClass().getClassLoader().getResource()??
         URL url = this.getClass().getResource("/" + property.replaceAll("\\.", "/"));
         File classFile = new File(url.getFile());
         for(File file : classFile.listFiles()){
