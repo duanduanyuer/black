@@ -11,7 +11,12 @@ public class DLPBeanWrapper {
     private Class<?> wrappedClass;
 
     public DLPBeanWrapper(Object wrappedInstance) {
-        this.wrappedInstance = wrappedInstance;
+        if(wrappedInstance instanceof DLPBeanWrapper){
+            this.wrappedClass = ((DLPBeanWrapper) wrappedInstance).wrappedClass;
+            this.wrappedInstance = ((DLPBeanWrapper) wrappedInstance).wrappedInstance;
+        }else{
+            this.wrappedInstance = wrappedInstance;
+        }
     }
 
     /**

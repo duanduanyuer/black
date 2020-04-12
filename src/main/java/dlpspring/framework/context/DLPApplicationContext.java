@@ -1,17 +1,21 @@
 package dlpspring.framework.context;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import dlpspring.framework.annotation.DLPAutowired;
 import dlpspring.framework.annotation.DLPController;
 import dlpspring.framework.annotation.DLPService;
 import dlpspring.framework.beans.DLPBeanFactory;
 import dlpspring.framework.beans.DLPBeanWrapper;
 import dlpspring.framework.beans.config.DLPBeanDefinition;
+import dlpspring.framework.beans.config.DLPBeanPostProcessor;
 import dlpspring.framework.beans.support.DLPBeanDefinitionReader;
 import dlpspring.framework.beans.support.DLPDefaultListableBeanFactory;
 
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -35,9 +39,9 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
     @Override
     public void refresh() {
         //IOC初始化步骤
-        //1、定位 配置文件
+        //1、定位 配置文件，把所有类名装载到一个list
         reader = new DLPBeanDefinitionReader(locations);
-        //2、加载配置文件，扫描相关的类，封装成BeanDefinition
+        //2、扫描相关的类，封装成BeanDefinition对象，放到BeanDefinitionList
         List<DLPBeanDefinition> beanDefinitionList = reader.loadBeanDefinitions();
         //3、注册，把配置信息放到ioc容器（伪IOC容器，真正的叫beanWrapper）
         doRegitsterBeanDefinition(beanDefinitionList);
@@ -54,7 +58,11 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
             if(beanDefinitionEntry.getValue().isLazyInit()){
                 continue;
             }
-            getBean(beanName);
+            try {
+                getBean(beanName);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
     }
@@ -68,24 +76,41 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
     public Object getBean(Class<?> beanClass) {
         return getBean(beanClass.getName());
     }
+
+    /**
+     * 根据ioc容器里的beanName找到对应的对象实例 dlpService
+     * @param beanName
+     * @return
+     * @throws Exception
+     */
     @Override
     public Object getBean(String beanName) {
-        DLPBeanDefinition beanDefinition = this.beanDefinitionMap.get(beanName);
-        //doCreateBean 为什么先初始化后注入？解决循环依赖
-        //instantiateBean 初始化实体对象 beanName,beanDefinition
-        DLPBeanWrapper beanWrapper = instantiateBean(beanName, beanDefinition);
-        //把beanWrapper保存到ioc容器中
+        try{
+            DLPBeanDefinition beanDefinition = this.beanDefinitionMap.get(beanName);
+            Object instance = instantiateBean(beanName, beanDefinition);
+            //工厂模式+策略模式
+            DLPBeanPostProcessor postProcessor = new DLPBeanPostProcessor();
+            postProcessor.postProcessBeforeInitialization(instance, beanName); //应该在初始化之前？
+            //doCreateBean 为什么先初始化后注入？解决循环依赖
+            //instantiateBean 初始化实体对象 beanName,beanDefinition
+            DLPBeanWrapper beanWrapper = new DLPBeanWrapper(instance);
+            //把beanWrapper保存到ioc容器中
 //        if(factoryBeanInstanceCache.containsKey(beanName)){
 //            throw new Exception("The" + beanName + "is exists!");
-//
-        this.factoryBeanInstanceCache.put(beanName, beanWrapper);
-        //populateBean 注入 把bd转换成beanWrapper 缓存
-        populateBean(beanName, new DLPBeanDefinition(), beanWrapper);
-        return this.factoryBeanInstanceCache.get(beanName).getWrappedInstance();
+            this.factoryBeanInstanceCache.put(beanName, beanWrapper);
+            postProcessor.postProcessAfterInitialization(instance, beanName);
+            //populateBean 注入 把bd转换成beanWrapper 缓存
+            populateBean(beanName, new DLPBeanDefinition(), beanWrapper);
+            return this.factoryBeanInstanceCache.get(beanName).getWrappedInstance();
+        }catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private void populateBean(String beanName, DLPBeanDefinition beanDefinition, DLPBeanWrapper beanWrapper) {
         Object instance = beanWrapper.getWrappedInstance();
+//        System.out.println(JSONObject.toJSON(beanWrapper));
         Class<?> clazz = beanWrapper.getWrappedClass();
         //判断只有加了注解的类，才执行依赖注入
         if(!(clazz.isAnnotationPresent(DLPController.class) || clazz.isAnnotationPresent(DLPService.class))){
@@ -115,7 +140,7 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
 
     }
 
-    private DLPBeanWrapper instantiateBean(String beanName, DLPBeanDefinition beanDefinition) {
+    private Object instantiateBean(String beanName, DLPBeanDefinition beanDefinition) {
         //1、拿到要实例化的对象的类名
 
         String className = beanDefinition.getBeanName();
@@ -141,5 +166,21 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
         beanWrapper.setWrappedClass(clazz);
         //4、把beanWrapper存在ioc容器，判断单例，如果单例，存singletonObjects
         return beanWrapper;
+    }
+
+    /**
+     * 提供给dispatcher用，不能直接给map 最少知道原则
+     * @return
+     */
+    public String[] getBeanDefinitionNames(){
+        return this.beanDefinitionMap.keySet().toArray(new String[this.beanDefinitionMap.size()]);
+    }
+
+    public int getBeanDefinitionCount(){
+        return this.beanDefinitionMap.size();
+    }
+
+    public Properties getConfig(){
+        return this.reader.getConfig();
     }
 }

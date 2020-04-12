@@ -21,7 +21,7 @@ public class DLPBeanDefinitionReader {
 
     private Properties config = new Properties();
     private final String SCAN_PACKAGE = "scanPackage";
-    private List<String> registryBeanClass = new ArrayList<>();
+    private List<String> registryBeanClass = new ArrayList<>(); //所有目录下的className
 
     public DLPBeanDefinitionReader(String[] locations) {
         //通过url定位找到其所对应的文件，然后转换为文件流

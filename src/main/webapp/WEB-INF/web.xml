@@ -8,7 +8,8 @@
 
   <servlet>
     <servlet-name>mymvc</servlet-name>
-    <servlet-class>dlpspring.framework.servlet.DLPDispatcherNewServlet</servlet-class>
+<!--    <servlet-class>dlpspring.framework.servlet.DLPDispatcherNewServlet</servlet-class>-->
+    <servlet-class>dlpspring.framework.webmvc.servlet.DLPDispatcherServlet</servlet-class>
     <init-param>
       <param-name>contextConfigLocation</param-name>
       <param-value>application.properties</param-value>
