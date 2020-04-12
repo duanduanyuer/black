@@ -5,6 +5,11 @@ import com.alibaba.fastjson.JSONObject;
 import dlpspring.framework.annotation.DLPAutowired;
 import dlpspring.framework.annotation.DLPController;
 import dlpspring.framework.annotation.DLPService;
+import dlpspring.framework.aop.DLPAopProxy;
+import dlpspring.framework.aop.DLPCglibAopProxy;
+import dlpspring.framework.aop.DLPJdkDynamicAopProxy;
+import dlpspring.framework.aop.config.DLPAopConfig;
+import dlpspring.framework.aop.support.DLPAdvisedSupport;
 import dlpspring.framework.beans.DLPBeanFactory;
 import dlpspring.framework.beans.DLPBeanWrapper;
 import dlpspring.framework.beans.config.DLPBeanDefinition;
@@ -12,6 +17,7 @@ import dlpspring.framework.beans.config.DLPBeanPostProcessor;
 import dlpspring.framework.beans.support.DLPBeanDefinitionReader;
 import dlpspring.framework.beans.support.DLPDefaultListableBeanFactory;
 
+import java.awt.*;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +35,7 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
     private String[] locations;
     private DLPBeanDefinitionReader reader;
     private Map<String, Object> singletonObjects = new ConcurrentHashMap<>();
-    private Map<String, DLPBeanWrapper> factoryBeanInstanceCache = new ConcurrentHashMap<>();
+    private Map<String, Object> factoryBeanInstanceCache = new ConcurrentHashMap<>();
 
     public DLPApplicationContext(String... locations) {
         this.locations = locations;
@@ -97,11 +103,13 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
             //把beanWrapper保存到ioc容器中
 //        if(factoryBeanInstanceCache.containsKey(beanName)){
 //            throw new Exception("The" + beanName + "is exists!");
+            System.out.println("beanWrapper==="+JSONObject.toJSONString(beanWrapper));
             this.factoryBeanInstanceCache.put(beanName, beanWrapper);
             postProcessor.postProcessAfterInitialization(instance, beanName);
             //populateBean 注入 把bd转换成beanWrapper 缓存
             populateBean(beanName, new DLPBeanDefinition(), beanWrapper);
-            return this.factoryBeanInstanceCache.get(beanName).getWrappedInstance();
+            DLPBeanWrapper bw = (DLPBeanWrapper)this.factoryBeanInstanceCache.get(beanName);
+            return bw.getWrappedInstance();
         }catch (Exception e){
             e.printStackTrace();
             return null;
@@ -110,9 +118,12 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
 
     private void populateBean(String beanName, DLPBeanDefinition beanDefinition, DLPBeanWrapper beanWrapper) {
         Object instance = beanWrapper.getWrappedInstance();
-//        System.out.println(JSONObject.toJSON(beanWrapper));
+        System.out.println(JSONObject.toJSON(beanWrapper));
         Class<?> clazz = beanWrapper.getWrappedClass();
         //判断只有加了注解的类，才执行依赖注入
+        if(null == clazz){
+            return;
+        }
         if(!(clazz.isAnnotationPresent(DLPController.class) || clazz.isAnnotationPresent(DLPService.class))){
             return;
         }
@@ -131,7 +142,9 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
             try {
                 //为什么这里会有null 接口的
                 if(this.factoryBeanInstanceCache.get(autowiredBeanName) == null){continue;}
-                field.set(instance,this.factoryBeanInstanceCache.get(autowiredBeanName).getWrappedInstance());
+                DLPBeanWrapper bw = (DLPBeanWrapper)this.factoryBeanInstanceCache.get(autowiredBeanName);
+
+                field.set(instance,bw.getWrappedInstance());
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -149,14 +162,21 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
         Class<?> clazz = null;
         try{
             //默认单例的了
-            if(this.singletonObjects.containsKey(className)){
-                instance = this.singletonObjects.get(className);
-                clazz = Class.forName(className);
+            if(this.factoryBeanInstanceCache.containsKey(className)){
+                instance = this.factoryBeanInstanceCache.get(className);
+//                clazz = Class.forName(className);
             }else{
                 clazz = Class.forName(className);
                 instance = clazz.newInstance();
-                this.singletonObjects.put(className, instance);
-                this.singletonObjects.put(beanDefinition.getFactoryBeanName(), instance);
+                DLPAdvisedSupport config = instantionAopConfig(beanDefinition);
+                config.setTargetClass(clazz);
+                config.setTarget(instance);
+                if(config.pointCutMatch()){ //用类名匹配pointCut规则，创建代理对象
+                    instance = createProxy(config).getProxy();
+                }
+//                clazz = Class.forName(className);
+                this.factoryBeanInstanceCache.put(className, instance);
+                this.factoryBeanInstanceCache.put(beanDefinition.getFactoryBeanName(), instance);
             }
         }catch (Exception e){
             e.printStackTrace();
@@ -164,8 +184,32 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
         //3、把这个对象封装到beanwrapper中  factoryBeanInstanceCache
         DLPBeanWrapper beanWrapper = new DLPBeanWrapper(instance);
         beanWrapper.setWrappedClass(clazz);
+
+//        //创建一个代理策略，是用cglib还是jdk
+//        DLPAopProxy proxy;
+//        Object proxy = proxy.getProxy();
+//        createProxy()
         //4、把beanWrapper存在ioc容器，判断单例，如果单例，存singletonObjects
         return beanWrapper;
+    }
+
+    private DLPAopProxy createProxy(DLPAdvisedSupport config) {
+        Class target = config.getTargetClass();
+        if(target.getInterfaces().length>0){
+            return new DLPJdkDynamicAopProxy(config);
+        }
+        return new DLPCglibAopProxy(config);
+    }
+
+    private DLPAdvisedSupport instantionAopConfig(DLPBeanDefinition beanDefinition) {
+        DLPAopConfig config = new DLPAopConfig();
+        config.setPointCut(this.reader.getConfig().getProperty("pointCut"));
+        config.setAspectClass(this.reader.getConfig().getProperty("aspectClass"));
+        config.setAspectBefore(this.reader.getConfig().getProperty("aspectBefore"));
+        config.setAspectAfter(this.reader.getConfig().getProperty("aspectAfter"));
+        config.setAspectAfterThrow(this.reader.getConfig().getProperty("aspectAfterThrow"));
+        config.setAspectAfterThrowingName(this.reader.getConfig().getProperty("aspectAfterThrowingName"));
+        return new DLPAdvisedSupport(config);
     }
 
     /**
