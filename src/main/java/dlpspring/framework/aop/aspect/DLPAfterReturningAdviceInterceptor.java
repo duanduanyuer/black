@@ -10,9 +10,9 @@ import java.lang.reflect.Method;
  * @Author duanliping
  * @Date 2020/4/12
  **/
-public class DLPMethodAfterAdviceInterceptor extends DLPAbstractAspectAdvice implements DLPAdvice,DLPMethodInterceptor {
+public class DLPAfterReturningAdviceInterceptor extends DLPAbstractAspectAdvice implements DLPAdvice,DLPMethodInterceptor {
     private DLPJoinPoint joinPoint;
-    public DLPMethodAfterAdviceInterceptor(Method aspectMethod, Object aspectTarget) {
+    public DLPAfterReturningAdviceInterceptor(Method aspectMethod, Object aspectTarget) {
         super(aspectMethod, aspectTarget);
     }
 
@@ -21,9 +21,10 @@ public class DLPMethodAfterAdviceInterceptor extends DLPAbstractAspectAdvice imp
         Object returnValue = invocation.proceed();
         this.joinPoint = invocation;
         this.afterReturning(returnValue, invocation.getMethod(), invocation.getThis());
-        return null;
+//        System.out.println("hhh after");
+        return returnValue;
     }
-    public void afterReturning(Object returnValue, Method method, Object aThis) throws Exception {
-        super.invokeAdviceMethod(this.joinPoint,returnValue, null);
+    public Object afterReturning(Object returnValue, Method method, Object aThis) throws Exception {
+        return super.invokeAdviceMethod(this.joinPoint,returnValue, null);
     }
 }

@@ -12,6 +12,7 @@ public class DlpService implements BaseService {
 
     @Override
     public String hello(String word) {
+        System.out.println("lalala");
         return "hello spring!!!--"+word;
     }
 }

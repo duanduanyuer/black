@@ -17,7 +17,6 @@ import dlpspring.framework.beans.config.DLPBeanPostProcessor;
 import dlpspring.framework.beans.support.DLPBeanDefinitionReader;
 import dlpspring.framework.beans.support.DLPDefaultListableBeanFactory;
 
-import java.awt.*;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +102,6 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
             //把beanWrapper保存到ioc容器中
 //        if(factoryBeanInstanceCache.containsKey(beanName)){
 //            throw new Exception("The" + beanName + "is exists!");
-            System.out.println("beanWrapper==="+JSONObject.toJSONString(beanWrapper));
             this.factoryBeanInstanceCache.put(beanName, beanWrapper);
             postProcessor.postProcessAfterInitialization(instance, beanName);
             //populateBean 注入 把bd转换成beanWrapper 缓存
@@ -118,12 +116,9 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
 
     private void populateBean(String beanName, DLPBeanDefinition beanDefinition, DLPBeanWrapper beanWrapper) {
         Object instance = beanWrapper.getWrappedInstance();
-        System.out.println(JSONObject.toJSON(beanWrapper));
+//        System.out.println(JSONObject.toJSON(beanWrapper));
         Class<?> clazz = beanWrapper.getWrappedClass();
         //判断只有加了注解的类，才执行依赖注入
-        if(null == clazz){
-            return;
-        }
         if(!(clazz.isAnnotationPresent(DLPController.class) || clazz.isAnnotationPresent(DLPService.class))){
             return;
         }
@@ -164,7 +159,7 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
             //默认单例的了
             if(this.factoryBeanInstanceCache.containsKey(className)){
                 instance = this.factoryBeanInstanceCache.get(className);
-//                clazz = Class.forName(className);
+                clazz = Class.forName(className);
             }else{
                 clazz = Class.forName(className);
                 instance = clazz.newInstance();
@@ -174,8 +169,7 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
                 if(config.pointCutMatch()){ //用类名匹配pointCut规则，创建代理对象
                     instance = createProxy(config).getProxy();
                 }
-//                clazz = Class.forName(className);
-                this.factoryBeanInstanceCache.put(className, instance);
+//                this.factoryBeanInstanceCache.put(className, instance);
                 this.factoryBeanInstanceCache.put(beanDefinition.getFactoryBeanName(), instance);
             }
         }catch (Exception e){
@@ -184,11 +178,6 @@ public class DLPApplicationContext extends DLPDefaultListableBeanFactory impleme
         //3、把这个对象封装到beanwrapper中  factoryBeanInstanceCache
         DLPBeanWrapper beanWrapper = new DLPBeanWrapper(instance);
         beanWrapper.setWrappedClass(clazz);
-
-//        //创建一个代理策略，是用cglib还是jdk
-//        DLPAopProxy proxy;
-//        Object proxy = proxy.getProxy();
-//        createProxy()
         //4、把beanWrapper存在ioc容器，判断单例，如果单例，存singletonObjects
         return beanWrapper;
     }

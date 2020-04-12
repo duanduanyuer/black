@@ -1,7 +1,8 @@
 package dlpspring.framework.aop.support;
 
+import com.alibaba.fastjson.JSONObject;
 import dlpspring.framework.aop.aspect.DLPAfterThrowingAdviceInterceptor;
-import dlpspring.framework.aop.aspect.DLPMethodAfterAdviceInterceptor;
+import dlpspring.framework.aop.aspect.DLPAfterReturningAdviceInterceptor;
 import dlpspring.framework.aop.aspect.DLPMethodBeforeAdviceInterceptor;
 import dlpspring.framework.aop.config.DLPAopConfig;
 
@@ -46,8 +47,11 @@ public class DLPAdvisedSupport {
         try{
             methodCache = new HashMap<>();
             Pattern pattern = Pattern.compile(pointCut);
-            Class aspectClass = Class.forName(this.config.getAspectClass());
+            Class aspectClass = Class.forName(this.config.getAspectClass()); //拿到切面类
             Map<String, Method> aspectMethods = new HashMap<>();
+            for(Method m: aspectClass.getMethods()){
+                aspectMethods.put(m.getName(), m);
+            }
 
             for(Method m:this.targetClass.getMethods()){
                 String methodString = m.toString();
@@ -68,7 +72,7 @@ public class DLPAdvisedSupport {
                     }
                     if(!(null == config.getAspectAfter() || "".equals(config.getAspectAfter()))){
                         //创建一个advices对象
-                        advices.add(new DLPMethodAfterAdviceInterceptor(aspectMethods.get(config.getAspectAfter()),aspectClass.newInstance()));
+                        advices.add(new DLPAfterReturningAdviceInterceptor(aspectMethods.get(config.getAspectAfter()),aspectClass.newInstance()));
                     }
                     if(!(null == config.getAspectAfterThrow() || "".equals(config.getAspectAfterThrow()))){
                         //创建一个advices对象

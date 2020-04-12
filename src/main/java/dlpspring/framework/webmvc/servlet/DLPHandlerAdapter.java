@@ -1,6 +1,5 @@
 package dlpspring.framework.webmvc.servlet;
 
-import com.alibaba.fastjson.JSONObject;
 import dlpspring.framework.annotation.DLPRequestParam;
 
 import javax.servlet.http.HttpServletRequest;
@@ -67,9 +66,6 @@ public class DLPHandlerAdapter {
             paramValues[respIndex] = response;
         }
         try {
-            System.out.println("handlerMapping.getMethod()=="+ JSONObject.toJSONString(handlerMapping));
-            System.out.println("handlerMapping.getController()==="+JSONObject.toJSONString(handlerMapping.getController()));
-            System.out.println("paramValues==="+paramValues);
             Object result = handlerMapping.getMethod().invoke(handlerMapping.getController(), paramValues);
             if(result == null || result instanceof Void){
                 return null;
